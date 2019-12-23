@@ -77,13 +77,13 @@ cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | unfurl --uni
 cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | grep -P "\w+\.js(\?|$)" | sort -u > ./$domain/$foldername/wayback-data/jsurls.txt
 [ -s ./$domain/$foldername/wayback-data/jsurls.txt ] && echo "JS Urls saved to /$domain/$foldername/wayback-data/jsurls.txt" 
 
-cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | grep -P "\w+\.php(\?|$) | sort -u " > ./$domain/$foldername/wayback-data/phpurls.txt
+cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | grep -P "\w+\.php(\?|$)" | sort -u  > ./$domain/$foldername/wayback-data/phpurls.txt
 [ -s ./$domain/$foldername/wayback-data/phpurls.txt ] && echo "PHP Urls saved to /$domain/$foldername/wayback-data/phpurls.txt" 
 
-cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | grep -P "\w+\.aspx(\?|$) | sort -u " > ./$domain/$foldername/wayback-data/aspxurls.txt
+cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | grep -P "\w+\.aspx(\?|$)" | sort -u > ./$domain/$foldername/wayback-data/aspxurls.txt
 [ -s ./$domain/$foldername/wayback-data/aspxurls.txt ] && echo "ASP Urls saved to /$domain/$foldername/wayback-data/aspxurls.txt" 
 
-cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | grep -P "\w+\.jsp(\?|$) | sort -u " > ./$domain/$foldername/wayback-data/jspurls.txt
+cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | grep -P "\w+\.jsp(\?|$)" | sort -u > ./$domain/$foldername/wayback-data/jspurls.txt
 [ -s ./$domain/$foldername/wayback-data/jspurls.txt ] && echo "JSP Urls saved to /$domain/$foldername/wayback-data/jspurls.txt" 
 }
 
@@ -112,6 +112,10 @@ recon(){
   echo "${green}Recon started on $domain ${reset}"
   echo "Listing subdomains using sublister..."
   python ~/tools/Sublist3r/sublist3r.py -d $domain -t 10 -v -o ./$domain/$foldername/$domain.txt > /dev/null
+
+  echo "Listing subdomain using subfinder..."
+  subfinder -d $domain -o ./$domain/$foldername/subfinder.txt  > /dev/null                                                                                                                        cat ./$domain/$foldername/subfinder.txt >> ./$domain/$foldername/$domain.txt 
+
   echo "Checking certspotter..."
   curl -s https://certspotter.com/api/v0/certs\?domain\=$domain | jq '.[].dns_names[]' | sed 's/\"//g' | sed 's/\*\.//g' | sort -u | grep $domain >> ./$domain/$foldername/$domain.txt
   nsrecords $domain
@@ -150,19 +154,26 @@ searchcrtsh(){
 mass(){
  ~/tools/massdns/scripts/subbrute.py $massdnsWordlist $domain | ~/tools/massdns/bin/massdns -r ~/tools/massdns/lists/resolvers.txt -t A -q -o S | grep -v 142.54.173.92 > ./$domain/$foldername/mass.txt
 }
+
+dnsgobuster(){
+gobuster dns -d $domain -t 100 -w $massdnsWordlist -o ./$domain/$foldername/gobuster.txt
+}
 nsrecords(){
 
 
                 echo "Checking http://crt.sh"
                 searchcrtsh $domain
-                echo "Starting Massdns Subdomain discovery this may take a while"
-                mass $domain > /dev/null
-                echo "Massdns finished..."
+                #echo "Starting Massdns Subdomain discovery this may take a while"
+                #mass $domain > /dev/null
+		echo "Starting Gobuster Subdomain discovery"
+		dnsgobuster
+                echo "Gobuster finished..."
                 echo "${green}Started dns records check...${reset}"
                 echo "Looking into CNAME Records..."
 
 
-                cat ./$domain/$foldername/mass.txt >> ./$domain/$foldername/temp.txt
+                #cat ./$domain/$foldername/mass.txt >> ./$domain/$foldername/temp.txt
+                cat ./$domain/$foldername/gobuster.txt | sed 's/Found: //' >> ./$domain/$foldername/temp.txt
                 cat ./$domain/$foldername/domaintemp.txt >> ./$domain/$foldername/temp.txt
                 cat ./$domain/$foldername/crtsh.txt >> ./$domain/$foldername/temp.txt
 
@@ -497,4 +508,3 @@ path=$(pwd)
 foldername=recon-$todate
 source ~/.bash_profile
 main $domain
-
